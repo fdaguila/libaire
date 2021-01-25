@@ -10,7 +10,7 @@ analogic-to-digital conversion hardware.
 
 An inherently complex issue in the AD conversor is the reliability of
 the values obtained. Such values are influenced by a number of
-details: the waiting times after changing the channel or the reference
+details: the waiting time after changing the channel or the reference
 source. This module hides to some extent the procedures of channel
 change or reference source change while trying to guarantee reliable
 enough read values. Note that some of the factors that induce

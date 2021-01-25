@@ -138,7 +138,7 @@ dist:   $(SRC_DIST).tar.gz
 # Install in user local space
 
 install: lib
-	install -D -m 644 -t $(USRLOCALROOT)/lib $(SRC_LIB)
+	install -D -m 444 -t $(USRLOCALROOT)/lib $(SRC_LIB)
 	for f in $(PUBLIC_HEADERS); \
            do install -D -m 444  -t $(USRLOCALROOT)/include $(SRCDIR)/$$f; \
         done

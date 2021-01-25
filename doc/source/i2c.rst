@@ -213,7 +213,7 @@ Examples
 Example 1
 ---------
 
-An example where an RTC DS1307 is queried every 500 ms and teh results
+An example where an RTC DS1307 is queried every 500 ms and the results
 printed over the serial port.
 
 .. code-block:: c
