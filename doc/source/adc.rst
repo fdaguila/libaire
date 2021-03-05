@@ -78,6 +78,112 @@ pattern:
 Some functions are canned combinations of basic operations.
 
 
+Operation Modes
+===============
+
+Es poden definir 2 modes d'operació. El primer mode, que es pot
+anomenar **Only**, està implementat i definit a la Introducció i a la
+API. Aquest mode està basat en els modes propis del perifèric
+*Single* i *Free Running*. En aquest mode es genera una única
+mostra. Alternativament aquesta única mostra pot ser el promig de
+N_SAMPLES mostres obtingudes de forma continuada. Per aconseguir
+aquestes mostres, es fa servir el mode *Free Running*, que
+consisteix en realitzar la nova conversió, tot just s'acabat
+l'anterior. En aquest cas, el conversor obté les mostres a la màxima
+velocitat possible.
+
+Un segon mode anomenat **Periodic** genera mostres de forma continuada
+amb 2 opcions. Una primera opció és que les generi a la màxima
+velocitat que pot el convertidor, per tant estarà basat en el mode
+bàsic *Free Running* o bé que les generi en base a un senyal extern de
+dispar i per tant basat en el mode *Triggered*. En aquest últim cas
+cal coordinar-se amb els mòduls que generen la font de Trigger.
+
+La gestió dels canals de conversió posterior a la inicialització del
+sistema es fa molt complicada i potser no té gaire sentit. Redefinir
+freqüències de mostreig quan un canal s'incorpora o es treu pot donar
+lloc a situacions on els temps de conversió, combinat amb el període
+de mostreig per canal generi una situació inviable. Per aquest motiu
+la idea és fer un planificador de mostreig comú a tots els
+protothreads que incorpori tots els canals que es volen mostrejar
+definit a la inicialització global del sistema. El disseny d'aquest
+planificador pot venir donat per una eina exterior
+(feta p. ex. python) que determini els paràmetres d'inicialització.
+
+Les dades d'entrada a aquesta eina planificadora hauria de ser els
+canals que es volen mostrejar i la seva freqüència de mostreig. La
+sortida hauria de donar:
+
+1. La configuració amb la freqüència de funcionament del senyal de
+   *Trigger*.
+2. Una llista amb la seqüència de canals sobre els que s'anirà
+   generant cada mostra. A cada senyal de *Trigger*, el convertidor
+   escollirà el següent canal de la llista seguint un estratègia tipus
+   Round-Robin. Si un dels canals es vol mostrejar més sovint es pot
+   repetir dins aquesta llista. L'eina planificadora haurà de vigilar
+   que es mantingui la periodicitat. Els valors dels possibles canals
+   estan dins el rang [0:10]. Un exemple de planificador per 3 canals
+   podria ser [0, 1, 0, 2]. En aquest cas el canal 0 es mostreja el
+   doble de vegades que els canals 1 i 2.
+3. Per a cada canal existent al planificador, ha de donar el nombre de
+   mostres sobre les que es farà un filtrat abans de lliurar la mostra
+   final com a resultat de la conversió. Si no es realitza cap
+   filtrat, aquest nombre ha de ser 1. Aprofitant el cas anterior
+   {c0:1, c1:2, c2:3} vol dir que al canal 0 no se li farà cap
+   filtrat, al canal 1 es farà un filtrat de 2 mostres i el canal 3 un
+   filtrat de 3 mostres.
+
+En conclusió, aprofitant els exemples anteriors, si considerem que la
+freqüència del senyal de Trigger és *Ft*, definint la mida de la
+llista del planificador com *M*, les freqüències de mostreig de
+cadascun dels 3 canals serà:
+
+1. c0: Ft/M*2/1 On 2 és el nombre de vegades que c0 surt a la llista
+   del planificador i 1 és el nombre de mostres del filtre.
+   
+2. c1: Ft/M*1/2
+   
+3. c3: Ft/M*1/3
+
+
+L'estructura d'utilització del mòdul podria ser:
+   
+   1. Inicialització general del mòdul (abans d'interrupcions i 1 sola
+      vegada) amb 'adc_setup()'.
+
+   2. Definir els canals a mostrejar. Això es fa via un seguit
+      d'ordres 'adc_bind()'. S'afegeix com a paràmetre el nombre de
+      mostres sobre el que es farà un filtrat tipus CMA Cummulative
+      Moving Average.
+
+   3. Definir la planificació de mostreig. Aquesta planificació
+      s'inicialitza amb 'adc_start_planning()'. Segueix amb succesives
+      crides a 'adc_add_planning()' passant com a paràmetre un dels
+      canal als que s'ha fet el binding anteriorment. Finalitza amb
+      'adc_stop_planning()'. 'adc_add_planning()' accepta repeticions
+      d'un canal concret dins del planificador. Serà responsabilitat
+      del programador assegurar que es mantingui la periodicitat de
+      mostreig d'un canal si 'adc_add_planning()' s'ha cridat més
+      d'una vegada amb el mateix canal.
+
+   4. Engegar **totes** les conversions periòdiques amb
+      'adc_start_conversion()'.
+
+   5. Consultar si la conversió ha acabat o no amb una funció
+      'adc_converting()' que hauria de tenir com a paràmetre el
+      'adc_channel' retornat per 'adc_bind()'. O bé cridar a un
+      call-back cada vegada que es té una nova mostra. Aquest
+      call-back s'hauria de passar també com a paràmetre a
+      'adc_bind()'
+
+   6. Llegir el valor del conversor amb 'adc_get()' passant com a
+      paràmetre el 'adc_channel'.
+
+
+
+
+
+
 Module API
 ==========
 
